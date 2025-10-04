@@ -20,6 +20,15 @@ project("edgeviewer")
 # the target library name; in the sub-module's CMakeLists.txt, ${PROJECT_NAME}
 # is preferred for the same purpose.
 #
+# Path to OpenCV SDK (adjust as per your system)
+set(OpenCV_DIR "/Users/suyashsuryavansh/OpenCV-android-sdk/sdk/native/jni")
+
+# Find OpenCV package (core, imgproc, highgui)
+find_package(OpenCV REQUIRED core imgproc highgui)
+
+# Include OpenCV headers
+include_directories(${OpenCV_INCLUDE_DIRS})
+#
 # In order to load a library into your app from Java/Kotlin, you must call
 # System.loadLibrary() and pass the name of the library defined here;
 # for GameActivity/NativeActivity derived applications, the same library name must be
@@ -34,4 +43,6 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
 target_link_libraries(${CMAKE_PROJECT_NAME}
         # List libraries link to the target library
         android
+        ${OpenCV_LIBS}
+        GLESv2
         log)

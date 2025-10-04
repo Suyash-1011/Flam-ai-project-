@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "EdgeViewer"
 include(":app")
+include(":sdk")

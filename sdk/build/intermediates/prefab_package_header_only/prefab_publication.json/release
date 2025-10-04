@@ -1,0 +1,17 @@
+{
+  "installationFolder": "/Users/suyashsuryavansh/My_Files/flam_ai_assignment/sdk/build/intermediates/prefab_package/release/prefab",
+  "gradlePath": ":sdk",
+  "packageInfo": {
+    "packageName": "sdk",
+    "packageSchemaVersion": 2,
+    "packageDependencies": [],
+    "modules": [
+      {
+        "moduleName": "opencv_jni_shared",
+        "moduleHeaders": "/Users/suyashsuryavansh/My_Files/flam_ai_assignment/sdk/native/jni/include",
+        "moduleExportLibraries": [],
+        "abis": []
+      }
+    ]
+  }
+}
