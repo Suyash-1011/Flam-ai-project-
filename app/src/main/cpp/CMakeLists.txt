@@ -35,6 +35,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 # used in the AndroidManifest.xml file.
 add_library(${CMAKE_PROJECT_NAME} SHARED
         # List C/C++ source files with relative paths to this CMakeLists.txt.
+
         native-lib.cpp)
 
 # Specifies libraries CMake should link to your target library. You
@@ -45,4 +46,5 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         android
         ${OpenCV_LIBS}
         GLESv2
+        EGL
         log)
