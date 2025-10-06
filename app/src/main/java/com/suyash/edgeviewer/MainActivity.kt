@@ -74,8 +74,7 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         checkCameraPermission()
     }
 
-    private fun checkCameraPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+    private fun checkCameraPermission() {if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(
                 this,
@@ -83,9 +82,13 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
                 CAMERA_PERMISSION_CODE
             )
         } else {
-            cameraBridge.enableView()
+            Log.d(TAG, "Permission is already granted.")
+            // Inform the view that permission is granted
+            cameraBridge.setCameraPermissionGranted()
         }
     }
+
+
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -95,6 +98,8 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Inform the view that permission is granted
+                cameraBridge.setCameraPermissionGranted()
                 cameraBridge.enableView()
             } else {
                 Toast.makeText(this, "Camera permission required", Toast.LENGTH_LONG).show()
@@ -102,6 +107,7 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
             }
         }
     }
+
 
     override fun onCameraViewStarted(width: Int, height: Int) {
         Log.d(TAG, "Camera started: ${width}x${height}")
@@ -129,68 +135,78 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
 
     override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat {
+        // Calculate FPS
+        frameCount++
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastTime >= 1000) {
+            currentFps = (frameCount * 1000.0) / (currentTime - lastTime)
+            frameCount = 0
+            lastTime = currentTime
+            runOnUiThread {
+                tvFps.text = String.format("FPS: %.1f", currentFps)
+            }
+        }
+
+        val rgba = inputFrame.rgba()
+        if (rgba.empty()) {
+            Log.e(TAG, "Received empty frame, returning it.")
+            return rgba
+        }
+
+        if (!isEdgeDetectionEnabled) {
+            return rgba // Return raw feed if detection is OFF
+        }
+
+        // --- Processing Logic ---
+        val outputMat = processedMat
+        if (outputMat == null) {
+            Log.e(TAG, "processedMat is null, returning raw frame as fallback.")
+            return rgba
+        }
+
         try {
-            // Get the input frame
-            val rgba = inputFrame.rgba()
+            // Process the frame and get the address of the C++ Mat
+            val processedAddr = processor.processFrame(rgba.nativeObjAddr)
 
-            // Check if frame is valid
-            if (rgba.empty()) {
-                Log.e(TAG, "Received empty frame")
-                return rgba
-            }
+            // Create a temporary Java wrapper for the C++ Mat
+            val tempMat = Mat(processedAddr)
 
-            // Calculate FPS
-            frameCount++
-            val currentTime = System.currentTimeMillis()
-            val elapsed = currentTime - lastTime
+            // Copy the processed data from the temp Mat to our stable output Mat
+            tempMat.copyTo(outputMat)
 
-            if (elapsed >= 1000) {
-                currentFps = (frameCount * 1000.0) / elapsed
-                frameCount = 0
-                lastTime = currentTime
+            // IMPORTANT: Release the C++ memory immediately after copying
+            processor.releaseMat(processedAddr)
 
-                runOnUiThread {
-                    tvFps.text = String.format("FPS: %.1f", currentFps)
-                }
-            }
-
-            // Return processed or raw frame
-            return if (isEdgeDetectionEnabled) {
-                try {
-                    val processedAddr = processor.processFrame(rgba.nativeObjAddr)
-                    val tempMat = Mat(processedAddr)
-
-                    processedMat?.let { output ->
-                        tempMat.copyTo(output)
-                        processor.releaseMat(processedAddr)
-                        output
-                    } ?: tempMat
-
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error processing frame: ${e.message}", e)
-                    rgba
-                }
-            } else {
-                rgba
-            }
+            // Return the stable Mat that now holds the processed frame
+            return outputMat
 
         } catch (e: Exception) {
-            Log.e(TAG, "Critical error in onCameraFrame: ${e.message}", e)
-            return Mat() // Return empty mat to prevent crash
+            Log.e(TAG, "Critical error in native processing: ${e.message}", e)
+            // If native processing fails, safely return the original raw frame to avoid a crash
+            return rgba
         }
     }
+
 
     override fun onResume() {
         super.onResume()
-        if (OpenCVLoader.initDebug()) {
+        // Check for permission again in case the user revoked it while the app was paused
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED) {Log.d(TAG, "Resuming camera view.")
             cameraBridge.enableView()
+        } else {
+            Log.e(TAG, "Camera permission not granted on resume.")
+            // You might want to re-request permission or show a message
+            checkCameraPermission()
         }
     }
+
 
     override fun onPause() {
         super.onPause()
         cameraBridge.disableView()
     }
+
 
     override fun onDestroy() {
         super.onDestroy()
