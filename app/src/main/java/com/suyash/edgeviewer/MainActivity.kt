@@ -105,6 +105,15 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
 
     override fun onCameraViewStarted(width: Int, height: Int) {
         Log.d(TAG, "Camera started: ${width}x${height}")
+
+        if (width == 0 || height == 0) {
+            Log.e(TAG, "Invalid camera dimensions!")
+            runOnUiThread {
+                Toast.makeText(this, "Camera initialization failed", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+
         // Pre-allocate Mat objects
         rgbaMat = Mat()
         processedMat = Mat()
@@ -117,46 +126,57 @@ class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListe
         processedMat?.release()
     }
 
+
+
     override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat {
-        // Get the input frame
-        val rgba = inputFrame.rgba()
+        try {
+            // Get the input frame
+            val rgba = inputFrame.rgba()
 
-        // Calculate FPS
-        frameCount++
-        val currentTime = System.currentTimeMillis()
-        val elapsed = currentTime - lastTime
-
-        if (elapsed >= 1000) { // Update FPS every second
-            currentFps = (frameCount * 1000.0) / elapsed
-            frameCount = 0
-            lastTime = currentTime
-
-            runOnUiThread {
-                tvFps.text = String.format("FPS: %.1f", currentFps)
+            // Check if frame is valid
+            if (rgba.empty()) {
+                Log.e(TAG, "Received empty frame")
+                return rgba
             }
-        }
 
-        // Return processed or raw frame
-        return if (isEdgeDetectionEnabled) {
-            try {
-                // Process frame with memory management
-                val processedAddr = processor.processFrame(rgba.nativeObjAddr)
-                val tempMat = Mat(processedAddr)
+            // Calculate FPS
+            frameCount++
+            val currentTime = System.currentTimeMillis()
+            val elapsed = currentTime - lastTime
 
-                // Copy to reusable Mat
-                processedMat?.let { output ->
-                    tempMat.copyTo(output)
-                    // Clean up C++ allocated memory
-                    processor.releaseMat(processedAddr)
-                    output
-                } ?: tempMat
+            if (elapsed >= 1000) {
+                currentFps = (frameCount * 1000.0) / elapsed
+                frameCount = 0
+                lastTime = currentTime
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing frame: ${e.message}")
-                rgba // Return original on error
+                runOnUiThread {
+                    tvFps.text = String.format("FPS: %.1f", currentFps)
+                }
             }
-        } else {
-            rgba // Return raw camera feed
+
+            // Return processed or raw frame
+            return if (isEdgeDetectionEnabled) {
+                try {
+                    val processedAddr = processor.processFrame(rgba.nativeObjAddr)
+                    val tempMat = Mat(processedAddr)
+
+                    processedMat?.let { output ->
+                        tempMat.copyTo(output)
+                        processor.releaseMat(processedAddr)
+                        output
+                    } ?: tempMat
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing frame: ${e.message}", e)
+                    rgba
+                }
+            } else {
+                rgba
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Critical error in onCameraFrame: ${e.message}", e)
+            return Mat() // Return empty mat to prevent crash
         }
     }
 
