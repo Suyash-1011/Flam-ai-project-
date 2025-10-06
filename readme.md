@@ -2,8 +2,11 @@
 
 EdgeViewer is an Android application that demonstrates real-time image processing using the device's camera. The app captures the camera feed and uses a native C++ backend with OpenCV to perform Canny edge detection, displaying the result on the screen. Users can toggle between the live, unprocessed camera feed and the edge-detected feed.
 
-![EdgeViewer Screenshot](https://via.placeholder.com/600x400.png?text=App+Screenshot+Here)
-*(This is a placeholder image - you should replace this with a real screenshot or GIF of your app in action!)*
+
+<img width="1080" height="2400" alt="Screenshot_20251007_000140" src="https://github.com/user-attachments/assets/fe67496e-5e1c-403c-b7cc-10da251ed306" />
+<img width="1080" height="2400" alt="Screenshot_20251007_000152" src="https://github.com/user-attachments/assets/dd6b2506-3024-4785-8ecb-6d11d11eb80b" />
+
+
 
 ## Features
 
